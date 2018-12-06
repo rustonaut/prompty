@@ -79,6 +79,7 @@ fn write_fill_line(out: &mut String, offset: usize, len: usize) {
 fn write_input_prompt(out: &mut String) {
     out.push(config::LINE);
     out.push(config::INPUT_START);
+    out.push(' ');
 }
 
 
