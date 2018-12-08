@@ -32,6 +32,7 @@ mod color {
     #![allow(unused)]
     use super::Color;
 
+    pub const TEXT_WHITE: Color = 251;
     pub const CYAN: Color = 6;
     pub const YELLOW: Color = 3;
     pub const RED: Color = 1;
@@ -48,7 +49,8 @@ fn fmt_to_color(fmt: FormatLike) -> Color {
     use self::FormatLike::*;
 
     match fmt {
-        Text => color::JUNGLE_GREEN,
+        Text => color::TEXT_WHITE,
+        PrimaryText => color::JUNGLE_GREEN,
         Lines => color::LIGHT_GRAY,
         SoftWarning => color::ORANGE,
         HardWarning => color::SIGNALING_RED,

@@ -36,8 +36,10 @@ pub trait ColumnCountPlugin {
 pub enum FormatLike  {
     Lines,
     Text,
+    PrimaryText,
     SoftWarning,
     HardWarning,
+    #[allow(unused)]
     ExplicitOk,
     Error,
     Hidden

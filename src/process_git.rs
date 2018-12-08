@@ -27,7 +27,7 @@ pub fn process_git<GIT, T>(terminal: &mut T)
 
     let (text, fmt_arg) =
         match (has_untracked_files, has_unstaged_files, has_staged_files) {
-            (false, false, false) => ("++", FormatLike::ExplicitOk),
+            (false, false, false) => ("++", FormatLike::Hidden),
             (false, false, true ) => ("A_", FormatLike::Text),
             (false, true,  false) => ("_M", FormatLike::Text),
             (false, true,  true ) => ("AM", FormatLike::SoftWarning),

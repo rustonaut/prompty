@@ -31,7 +31,7 @@ pub(crate) fn process_cwd<CWD, T>(terminal: &mut T)
         return;
     }
 
-    output_path(terminal, &base_path, FormatLike::Text);
+    output_path(terminal, &base_path, FormatLike::PrimaryText);
 }
 
 fn try_output_prefix_stripped_path(
@@ -46,7 +46,7 @@ fn try_output_prefix_stripped_path(
                     let last = base_path.file_name().unwrap_or(OsStr::new(""));
                     output_path(terminal, Path::new(last), FormatLike::Hidden);
                 } else {
-                    output_path(terminal, path, FormatLike::Text);
+                    output_path(terminal, path, FormatLike::PrimaryText);
                 }
                 return Ok(());
             }
