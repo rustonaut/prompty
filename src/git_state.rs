@@ -7,7 +7,27 @@ use crate::config::{
 };
 
 
+
+
 pub fn cwd_git_status() -> Option<GitStatus> {
+    //FIXME use git status -sb
+    // with will add a line to git status with has one of following formats
+    // - `## branchname`
+    // - `## branchname...origin/obranchname`
+    // - `## No commits yet on master` which happens in a new repo without any commits
+    //    but won't happen with a new branch without any commits, maybe _except_ if the
+    //    branch is parent less
+    // SO:
+    // - check if starts with `## No commits yet on ` if the tak tail aftet the start
+    // - else take first after `## ` until `...` or linebrake
+    // - Then parse lines for changes
+    //
+    // If I have untracked fiels + any kind of changed => strong warning (!+RED)
+    // If I have untracked fiels + no changes at all => soft warn (U+0ORANGE)
+    // If I have (no untracked files and) mixed changes (staged+unstages) => soft warn (P+ORANGE)
+    // If I have (no untracked files and) non mixed changes (staged xor unstaged) => ok, but dirty (M+BLUE)
+    // If I have no untracked  files and no changes => ok, clean (`+`+GREEN)
+    ///
     let output = Command::new("git")
         .args(&["status", "-s"])
         .output()

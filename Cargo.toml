@@ -4,3 +4,5 @@ version = "0.1.0"
 authors = ["Philipp Korber <philippkorber@gmail.com>"]
 
 [dependencies]
+term = "0.4.6"
+smallvec = "0.6.7"
