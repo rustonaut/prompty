@@ -1,17 +1,6 @@
 extern crate terminfo;
 extern crate smallvec;
-//TODO add a single argument to pass in which is the column count/terminal width
-//  - i.e. PS1="\$(prompty $COLUMNS)"
-//TODO if enough space on on line put path and git on same line
-//TODO use colors (gray out most of the prompt, expect the last folder and git state)
-//TODO collor git state appropiately (clean = green, dirty=orange, warn=signaling red)
-//FIXME relevant path currently doesn't work well if `current_dir()` and path on shell
-//  differ (because then the `g` function doesn't do a good job)
-//  also fix g by changing dir and then using `pwd` instead of using the argument
-//TODO alt to the column count allow passing in `setup-bash` which will:
-//   - emit a bash function g ` g() { cd "$1"; export __PS_PATH_TOP="$(dirname $(pwd -P))"; }`
-//   - emit a PS override `PS1="\$(prompty \$COLUMNS)"
-//FIXME if __PS_PATH_TOP == cwd still display last dir BUT GRAYED OUT
+
 use std::{
     env,
     cmp::max
