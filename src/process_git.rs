@@ -28,11 +28,12 @@ pub fn process_git<GIT, T>(terminal: &mut T)
     let (text, fmt_arg) =
         match (has_untracked_files, has_unstaged_files, has_staged_files) {
             (false, false, false) => ("++", FormatLike::ExplicitOk),
-            (false, false, true ) => ("_A", FormatLike::Text),
-            (false, true,  false) => ("M_", FormatLike::Text),
+            (false, false, true ) => ("A_", FormatLike::Text),
+            (false, true,  false) => ("_M", FormatLike::Text),
             (false, true,  true ) => ("AM", FormatLike::SoftWarning),
             (true,  false, false) => ("??", FormatLike::SoftWarning),
-            _ => ("!!", FormatLike::HardWarning),
+            (true,  true,  false) => ("?M", FormatLike::SoftWarning),
+            (true,  _,     true ) => ("!!", FormatLike::HardWarning),
         };
 
     terminal.extend_previous_segment(text, fmt_arg);
