@@ -1,4 +1,4 @@
-extern crate term;
+extern crate terminfo;
 extern crate smallvec;
 //TODO add a single argument to pass in which is the column count/terminal width
 //  - i.e. PS1="\$(prompty $COLUMNS)"

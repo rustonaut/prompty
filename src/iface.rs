@@ -39,6 +39,7 @@ pub enum FormatLike  {
     SoftWarning,
     HardWarning,
     ExplicitOk,
+    Error
 }
 
 pub trait TerminalPlugin: Sized + Debug {
