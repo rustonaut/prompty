@@ -17,22 +17,33 @@ pub const TEXT_END: char = '⟧';
 pub const CORNER_NE: char = '╚';
 
 
-type Color = u16;
+type Color = u8;
+
+mod color {
+    #![allow(unused)]
+    use super::Color;
+
+    pub const CYAN: Color = 6;
+    pub const YELLOW: Color = 3;
+    pub const RED: Color = 1;
+    pub const BRIGHT_RED: Color = 9;
+    pub const BRIGHT_GREEN: Color = 10;
+    pub const LIGHT_GRAY: Color = 243;
+    pub const JUNGLE_GREEN: Color = 112;
+    pub const ORANGE: Color = 208;
+    pub const SIGNALING_RED: Color = 196;
+}
 
 fn fmt_to_color(fmt: FormatLike) -> Color {
     use self::FormatLike::*;
 
-    const CYAN: Color = 6;
-    const YELLOW: Color = 3;
-    const RED: Color = 1;
-    const BRIGHT_RED: Color = 9;
-    const BRIGHT_GREEN: Color = 10;
     match fmt {
-        Text => CYAN,
-        Lines => YELLOW,
-        SoftWarning => RED,
-        HardWarning | Error => BRIGHT_RED,
-        ExplicitOk => BRIGHT_GREEN,
+        Text => color::JUNGLE_GREEN,
+        Lines => color::LIGHT_GRAY,
+        SoftWarning => color::ORANGE,
+        HardWarning => color::SIGNALING_RED,
+        Error => color::RED,
+        ExplicitOk => color::BRIGHT_GREEN,
     }
 }
 
@@ -112,7 +123,7 @@ impl TerminalPlugin for Terminal {
         term.fmt(FormatLike::Lines);
         write!(term, "{}{}", CORNER_NE, prompt_ending).unwrap();
         term.reset_fmt();
-        term.flush();
+        term.flush().unwrap();
     }
 }
 

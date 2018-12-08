@@ -75,15 +75,6 @@ pub enum WithNotAvailableVariant<T> {
     NotAvailable
 }
 
-impl<T> WithNotAvailableVariant<T> {
-    pub fn inner(&self) -> Option<&T> {
-        match self {
-            WithNotAvailableVariant::Err(e) => Some(e),
-            _ => None
-        }
-    }
-}
-
 
 impl<T> From<T> for WithNotAvailableVariant<T> {
     fn from(err: T) -> Self {
