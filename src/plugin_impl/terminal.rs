@@ -1,20 +1,29 @@
-use std::io::{self, Write};
+use std::{
+    io::{self, Write},
+    ops::Range,
+    cmp::min,
+    iter::Peekable
+};
 
-use crate::iface::{TerminalPlugin, FormatLike};
+use crate::{
+    iface::{TerminalPlugin, FormatLike},
+    config
+};
 
 use smallvec::{smallvec, SmallVec};
 use terminfo::{expand, Database, capability as cap};
 
 // pub const CORNER_SW: char = '╗';
-// pub const CORNER_SE: char = '╔';
-// pub const CORNER_NSE: char = '╠';
-// pub const LINE: char = '═';
-pub const TEXT_START: char = '⟦';
-pub const TEXT_END: char = '⟧';
+const CORNER_SE: char = '╔';
+const CORNER_NSE: char = '╠';
+const LINE: char = '═';
+const TEXT_START: char = '⟦';
+const TEXT_END: char = '⟧';
 // pub const ERROR_START: char = '!';
 // pub const ERROR_END: char = '!';
 // pub const CORNER_NW: char = '╝';
-pub const CORNER_NE: char = '╚';
+const CORNER_NE: char = '╚';
+const ERR_START: &str = "!!";
 
 
 type Color = u8;
@@ -90,34 +99,47 @@ impl TerminalPlugin for Terminal {
 
     fn flush_to_stdout(&self, prompt_ending: &str) {
         //FIXME this doesn't work fox `xterm-termite` for some
+
+        let lines = self.calculate_layout();
+
         let stdout = io::stdout();
         let mut term = self.writer(stdout.lock());
-
         let mut first = true;
-        term.fmt(FormatLike::Lines);
-        for segment_group in self.text_segments.iter() {
+
+        for LineLayout { segments, join_padding, rem_padding } in lines {
+            term.fmt(FormatLike::Lines);
             if first {
                 first = false;
-                write!(term, "╔").unwrap();
+                write!(term, "{}", CORNER_SE).unwrap();
             } else {
-                write!(term, "╠").unwrap();
+                write!(term, "{}", CORNER_NSE).unwrap();
             }
-            for segment in segment_group {
-                term.fmt(FormatLike::Lines);
-                write!(term, "{}", TEXT_START).unwrap();
-                term.fmt(segment.fmt);
-                write!(term, "{}", &segment.text).unwrap();
-                term.fmt(FormatLike::Lines);
-                write!(term, "{}", TEXT_END).unwrap();
+
+            for segment_group in &self.text_segments[segments] {
+                for segment in segment_group {
+                    term.fmt(FormatLike::Lines);
+                    write!(term, "{}", TEXT_START).unwrap();
+                    term.fmt(segment.fmt);
+                    write!(term, "{}", &segment.text).unwrap();
+                    term.fmt(FormatLike::Lines);
+                    write!(term, "{}", TEXT_END).unwrap();
+                }
+                for _ in 0..join_padding {
+                    write!(term, "{}", LINE).unwrap();
+                }
+            }
+
+            for _ in 0..rem_padding {
+                write!(term, "{}", LINE).unwrap();
             }
             write!(term, "\n").unwrap();
         }
 
         for (scope, text) in self.error_segments.iter() {
             term.fmt(FormatLike::Lines);
-            write!(term, "╠").unwrap();
+            write!(term, "{}", CORNER_NSE).unwrap();
             term.fmt(FormatLike::Error);
-            writeln!(term, "!! {}: {}", scope, text.trim()).unwrap();
+            writeln!(term, "{} {}: {}", ERR_START, scope, text.trim()).unwrap();
         }
 
         term.fmt(FormatLike::Lines);
@@ -138,6 +160,89 @@ impl Terminal {
             out
         }
     }
+
+    fn calculate_layout(&self) -> Vec<LineLayout> {
+        // -1 as it starts with a `╠` or similar
+        let init_rem_space = self.column_count - 1;
+
+        let mut lines = Vec::new();
+        let mut text_segments = self.text_segments.iter().peekable();
+
+        let mut idx_offset = 0;
+        while let Some(line) = calc_next_line_layout(&mut text_segments, init_rem_space, idx_offset) {
+            idx_offset = line.segments.end;
+            lines.push(line)
+        }
+
+        lines
+    }
+}
+
+fn calc_next_line_layout<'a>(
+    iter: &mut Peekable<impl Iterator<Item=impl IntoIterator<Item=&'a TextSegment>+Copy>>,
+    init_rem_space: usize,
+    idx_offset: usize
+) -> Option<LineLayout> {
+        let first_seg =
+            match iter.next() {
+                Some(seg) => seg,
+                None => {return None;}
+            };
+
+        let first_item = idx_offset;
+        let mut after_last_item = idx_offset + 1;
+        let first_len =  calc_min_segment_group_len(first_seg);
+        if first_len >= init_rem_space {
+            let segments = first_item..after_last_item;
+            return Some(LineLayout {
+                segments,
+                join_padding: 0,
+                rem_padding: 0
+            });
+        }
+
+        let mut rem_space = init_rem_space - first_len;
+
+        while let Some(segment_group_iter) = iter.peek().map(|i| *i) {
+            let min_len = calc_min_segment_group_len(segment_group_iter);
+
+            if rem_space > min_len {
+                rem_space -= min_len;
+                after_last_item += 1;
+                iter.next();
+            } else {
+                let segments = first_item..after_last_item;
+                let (join_padding, rem_padding) = calc_padding(first_item, after_last_item, rem_space);
+                return Some(LineLayout { segments, join_padding, rem_padding })
+            }
+        }
+
+        let segments = first_item..after_last_item;
+        let (join_padding, rem_padding) = calc_padding(first_item, after_last_item, rem_space);
+        Some(LineLayout { segments, join_padding, rem_padding })
+}
+
+fn calc_padding(
+    first_item: usize,
+    after_last_item: usize,
+    rem_space: usize
+) -> (usize, usize) {
+    let nr_items = after_last_item - first_item;
+    let join_padding = rem_space / nr_items;
+    let join_padding = min(join_padding, config::MAX_JOIN_PADDING);
+    let rem_padding = rem_space - (join_padding * nr_items);
+    (join_padding, rem_padding)
+}
+
+fn calc_min_segment_group_len<'a>(group: impl IntoIterator<Item=&'a TextSegment>) -> usize {
+    // +2 as in TEXT_START(char) + TEXT_END(char)
+    group.into_iter().map(|seg| seg.pre_calculated_length + 2).sum()
+}
+
+struct LineLayout {
+    segments: Range<usize>,
+    join_padding: usize,
+    rem_padding: usize
 }
 
 struct TermWriter<'a, W: Write+'a> {

@@ -12,7 +12,10 @@ extern crate smallvec;
 //   - emit a bash function g ` g() { cd "$1"; export __PS_PATH_TOP="$(dirname $(pwd -P))"; }`
 //   - emit a PS override `PS1="\$(prompty \$COLUMNS)"
 //FIXME if __PS_PATH_TOP == cwd still display last dir BUT GRAYED OUT
-use std::env;
+use std::{
+    env,
+    cmp::max
+};
 
 use crate::{
     iface::*,
@@ -47,6 +50,8 @@ fn run_with<TERM, PATH, GIT, COL>()
             Ok(cols) => (cols, None),
             Err(err) => (config::FALLBACK_COLUMN_COUNT, Some(err))
         };
+
+    let columns = max(columns, config::MIN_COLUMN_COUNT);
 
     let mut terminal = TERM::new(columns);
     if let Some(err) = delayed_error {
