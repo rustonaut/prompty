@@ -1,7 +1,8 @@
 const ERR_SCOPE: &str = "cwd";
 
 use std::{
-    path::{Path, PathBuf}
+    path::{Path, PathBuf},
+    ffi::OsStr
 };
 
 use crate::{
@@ -30,7 +31,7 @@ pub(crate) fn process_cwd<CWD, T>(terminal: &mut T)
         return;
     }
 
-    output_path(terminal, &base_path);
+    output_path(terminal, &base_path, FormatLike::Text);
 }
 
 fn try_output_prefix_stripped_path(
@@ -41,7 +42,12 @@ fn try_output_prefix_stripped_path(
      match prefix {
         Ok(prefix) => {
             if let Ok(path) = base_path.strip_prefix(prefix) {
-                output_path(terminal, path);
+                if is_empty_path(path) {
+                    let last = base_path.file_name().unwrap_or(OsStr::new(""));
+                    output_path(terminal, Path::new(last), FormatLike::Hidden);
+                } else {
+                    output_path(terminal, path, FormatLike::Text);
+                }
                 return Ok(());
             }
         },
@@ -52,11 +58,15 @@ fn try_output_prefix_stripped_path(
     Err(())
 }
 
-fn output_path(out: &mut impl TerminalPlugin, path: &Path) {
+fn is_empty_path(path: &Path) -> bool {
+    path.iter().next().is_none()
+}
+
+fn output_path(out: &mut impl TerminalPlugin, path: &Path, fmt: FormatLike) {
     if let Some(str_form) = path.to_str() {
-        out.add_text_segment(str_form, FormatLike::Text);
+        out.add_text_segment(str_form, fmt);
     } else {
-        out.add_text_segment(&format!("{}", path.display()), FormatLike::Text);
+        out.add_text_segment(&format!("{}", path.display()), fmt);
     }
 }
 

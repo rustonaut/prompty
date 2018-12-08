@@ -38,6 +38,7 @@ mod color {
     pub const BRIGHT_RED: Color = 9;
     pub const BRIGHT_GREEN: Color = 10;
     pub const LIGHT_GRAY: Color = 243;
+    pub const LESS_LIGHT_GRAY: Color = 240;
     pub const JUNGLE_GREEN: Color = 112;
     pub const ORANGE: Color = 208;
     pub const SIGNALING_RED: Color = 196;
@@ -53,6 +54,7 @@ fn fmt_to_color(fmt: FormatLike) -> Color {
         HardWarning => color::SIGNALING_RED,
         Error => color::RED,
         ExplicitOk => color::BRIGHT_GREEN,
+        Hidden => color::LESS_LIGHT_GRAY
     }
 }
 
