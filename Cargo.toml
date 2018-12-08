@@ -2,6 +2,8 @@
 name = "prompty"
 version = "0.1.0"
 authors = ["Philipp Korber <philippkorber@gmail.com>"]
+description = "Prompt command for bash"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 terminfo = "0.6.1"

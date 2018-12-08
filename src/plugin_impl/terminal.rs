@@ -256,22 +256,25 @@ impl<'a, W: 'a> TermWriter<'a, W>
     where W: Write
 {
     fn fmt(&mut self, fmt: FormatLike) {
+        write!(&mut self.out, "\x01").unwrap();
         let color = fmt_to_color(fmt);
         if let Some(cap) = self.terminal.terminfo.get::<cap::SetAForeground>() {
-            let _ = expand!(&mut self.out, cap.as_ref(); color);
+            expand!(&mut self.out, cap.as_ref(); color).unwrap();
         }
+        write!(&mut self.out, "\x02").unwrap();
     }
 
     fn reset_fmt(&mut self) {
+        write!(&mut self.out, "\x01").unwrap();
         let terminfo = &self.terminal.terminfo;
         if let Some(cap) = terminfo.get::<cap::ExitAttributeMode>() {
             expand!(&mut self.out, cap.as_ref();).unwrap();
         } else if let Some(cap) = terminfo.get::<cap::SetAttributes>() {
             expand!(&mut self.out, cap.as_ref(); 0).unwrap();
-        } else {
-            let cap = terminfo.get::<cap::OrigPair>().unwrap();
+        } else if let Some(cap) = terminfo.get::<cap::OrigPair>() {
             expand!(&mut self.out, cap.as_ref();).unwrap()
         }
+        write!(&mut self.out, "\x02").unwrap();
     }
 }
 
