@@ -19,6 +19,7 @@ const CORNER_NSE: char = '╠';
 const LINE: char = '═';
 const TEXT_START: char = '⟦';
 const TEXT_END: char = '⟧';
+const CORNER_NS: char = '║';
 // pub const ERROR_START: char = '!';
 // pub const ERROR_END: char = '!';
 // pub const CORNER_NW: char = '╝';
@@ -102,15 +103,33 @@ impl TerminalPlugin for Terminal {
     }
 
     fn flush_to_stdout(&self, prompt_ending: &str) {
-        //FIXME this doesn't work fox `xterm-termite` for some
+        //TODO split into multiple functions
+        // - one for outputting text segments
+        // - one for outputting error segments
 
-        let lines = self.calculate_layout();
+        let layout = self.calculate_layout();
 
         let stdout = io::stdout();
         let mut term = self.writer(stdout.lock());
-        let mut first = true;
 
-        for LineLayout { segments, join_padding, rem_padding } in lines {
+        self.render_text_segments(&mut term, layout);
+        self.render_error_segments(&mut term);
+
+        term.fmt(FormatLike::Lines);
+        write!(term, "{}{}", CORNER_NE, prompt_ending).unwrap();
+        term.reset_fmt();
+        term.flush().unwrap();
+    }
+}
+
+
+impl Terminal {
+
+    fn render_text_segments<W>(&self, term: &mut TermWriter<W>, layout: Vec<LineLayout>)
+        where W: Write
+    {
+        let mut first = true;
+        for LineLayout { segments, join_padding, rem_padding } in layout {
             term.fmt(FormatLike::Lines);
             if first {
                 first = false;
@@ -138,21 +157,64 @@ impl TerminalPlugin for Terminal {
             }
             write!(term, "\n").unwrap();
         }
+    }
 
+    fn render_error_segments<W>(&self, term: &mut TermWriter<W>)
+        where W: Write
+    {
         for (scope, text) in self.error_segments.iter() {
             term.fmt(FormatLike::Lines);
             write!(term, "{}", CORNER_NSE).unwrap();
             term.fmt(FormatLike::Error);
-            writeln!(term, "{} {}: {}", ERR_START, scope, text.trim()).unwrap();
-        }
+            let mut text = text.trim();
+            write!(term, "{} {}: ", ERR_START, scope).unwrap();
+            let bulk_len = 1 + ERR_START.len() + 1 + scope.len() + 2;
+            let mut rem_len = self.column_count.checked_sub(bulk_len).unwrap_or(0);
+            loop {
+                if text.len() <= rem_len {
+                    term.fmt(FormatLike::Error);
+                    write!(term, "{}", text).unwrap();
+                    break;
+                } else {
+                    //find split point and split text
+                    let split_idx = find_viable_split_idx(text, rem_len);
+                    let (line_text, new_text) = text.split_at(split_idx);
+                    text = new_text.trim_start();
+                    rem_len = self.column_count - 3;
 
-        term.fmt(FormatLike::Lines);
-        write!(term, "{}{}", CORNER_NE, prompt_ending).unwrap();
-        term.reset_fmt();
-        term.flush().unwrap();
+                    term.fmt(FormatLike::Error);
+                    write!(term, "{text}", text=line_text.trim_end()).unwrap();
+                    term.fmt(FormatLike::Lines);
+                    write!(term, "\n{sep}", sep=CORNER_NS).unwrap();
+                    for _ in 0..ERR_START.len()+1 {
+                        write!(term, " ").unwrap();
+                    }
+                }
+            }
+            write!(term, "\n").unwrap();
+        }
     }
 }
 
+fn find_viable_split_idx(text: &str, max_len: usize) -> usize {
+    let mut last_split_idx = 0;
+    let mut last_char_idx = 0;
+    for (idx, ch) in text.char_indices() {
+        if idx + ch.len_utf8() > max_len {
+            break;
+        }
+        last_char_idx = idx;
+        if !(ch.is_alphanumeric() || ch == '.' || ch=='!' || ch==':' || ch=='?') {
+            last_split_idx = idx;
+        }
+    }
+
+    if last_split_idx == 0 {
+        last_char_idx
+    } else {
+        last_split_idx
+    }
+}
 
 impl Terminal {
 
