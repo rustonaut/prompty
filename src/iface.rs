@@ -48,8 +48,8 @@ pub enum FormatLike  {
 pub trait TerminalPlugin: Sized + Debug {
     fn new(columns: usize) -> Self;
     fn add_text_segment(&mut self, text: &str, fmt_args: FormatLike);
-    fn add_error_segment(&mut self, scope: &'static str, msg: &str);
     fn extend_previous_segment(&mut self, text: &str, fmt_args: FormatLike);
+    fn add_error_segment(&mut self, scope: &'static str, msg: &str);
     fn flush_to_stdout(&self, prompt_ending: &str);
 }
 

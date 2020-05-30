@@ -5,6 +5,7 @@ use std::{
 
 use crate::iface::{GitInfo, GitPlugin, ErrorMessage, WithNotAvailableVariant};
 
+const UNMODIFIED_SHORT_STATUS_CODE: u8 = b' ';
 
 pub struct Git;
 
@@ -80,21 +81,33 @@ fn parse_branch(mut line: String) -> Result<String, ErrorMessage> {
         return Err(ErrorMessage::new(format!("invalid head `git status -sb` line: {}", line)));
     }
 
-    let end_branch_name_idx = line.bytes()
-        .position(|bch| bch == b'.')
+    let end_branch_name_idx = position_triple_dot(&line)
         .unwrap_or(line.len());
 
     // cut out unneeded parts from branch name,
     //  on a commit-less repository is will result in `No commits yet on master`
     //  which is fine
     line.truncate(end_branch_name_idx);
-    let mut idx_p1 = 0;
-    line.retain(|_ch| {
-        idx_p1 += 1;
-        idx_p1 > 3
-    });
+    line.drain(0..3);
 
     Ok(line)
+}
+
+fn position_triple_dot(line: &str) -> Option<usize> {
+    let mut dot_count = 0;
+    let res = line.bytes()
+        .position(|bch| {
+            if bch == b'.' {
+                dot_count += 1;
+                dot_count == 3
+            } else {
+                dot_count = 0;
+                false
+            }
+        })
+        .map(|pos| pos - 2);
+
+    res
 }
 
 /// Returns (has_untracked, has_unstaged, has_staged)
@@ -113,8 +126,8 @@ fn parse_status_line(line: impl AsRef<str>) -> Result<(bool, bool, bool), ErrorM
         return Ok((true, false, false));
     }
 
-    let has_staged = line[0] != b' ';
-    let has_unstaged = line[1] != b' ';
+    let has_staged = line[0] != UNMODIFIED_SHORT_STATUS_CODE;
+    let has_unstaged = line[1] != UNMODIFIED_SHORT_STATUS_CODE;
 
     Ok((false, has_staged, has_unstaged))
 }
@@ -126,7 +139,6 @@ mod test {
 
     #[test]
     fn parsing_status_line() {
-        assert_eq!((false, false, false), parse_status_line("## hy there").unwrap());
         assert_eq!((true,  false, false), parse_status_line("?? file").unwrap());
         assert_eq!((false, true,  false), parse_status_line("A  file").unwrap());
         assert_eq!((false, false, true ), parse_status_line(" M file").unwrap());
@@ -138,5 +150,15 @@ mod test {
         assert_eq!((false, true,  true ), parse_status_line("RD file").unwrap());
         assert_eq!((false, true,  true ), parse_status_line("AD file").unwrap());
         assert_eq!((false, true,  true ), parse_status_line("DM file").unwrap());
+        // treat any unknown status codes as "modified"
+        assert_eq!((false, true,  true ), parse_status_line("XY hy there").unwrap());
+    }
+
+    #[test]
+    fn parse_branch_line() {
+        assert_eq!("No commits yet on master", parse_branch("## No commits yet on master".into()).unwrap());
+        assert_eq!("master", parse_branch("## master...origin/master".into()).unwrap());
+        assert_eq!("0.3", parse_branch("## 0.3...origin/master".into()).unwrap());
+        assert_eq!("master-not_real", parse_branch("## master-not_real...origin/master".into()).unwrap());
     }
 }
